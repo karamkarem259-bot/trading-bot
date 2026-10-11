@@ -30,9 +30,20 @@ PAIRS = {
     "EUR/USD": "EURUSD=X",
     "GBP/USD": "GBPUSD=X",
     "USD/JPY": "JPY=X",
+    "USD/CAD": "USDCAD=X",
+    "AUD/USD": "AUDUSD=X",
+    "EUR/GBP": "EURGBP=X",
     "Bitcoin (BTC)": "BTC-USD",
-    "Ethereum (ETH)": "ETH-USD"
+    "Ethereum (ETH)": "ETH-USD",
+    "SOL/USD": "SOL-USD",
+    "XRP/USD": "XRP-USD",
+    "EUR/USD (OTC)": "EURUSD=X",
+    "GBP/USD (OTC)": "GBPUSD=X",
+    "USD/JPY (OTC)": "JPY=X",
+    "Gold (OTC)": "GC=F",
+    "Silver (OTC)": "SI=F"
 }
+
 
 def analyze_market(ticker_symbol):
     try:
