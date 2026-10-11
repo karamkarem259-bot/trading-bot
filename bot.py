@@ -24,7 +24,7 @@ import ta
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=10)
 
 # ضع توكين بوتك هنا بين القوسين المفردين بدلاً من النص الموجود
-TOKEN ='8843005132:AAFrNruMqfsL1zhwpzJi-y1NKlLiR10U2yM'
+TOKEN ='8843005132:AAEEg-c1EdT045S44o--StVNn8p37ubJcCI'
 
 PAIRS = {
     "EUR/USD": "EURUSD=X",
