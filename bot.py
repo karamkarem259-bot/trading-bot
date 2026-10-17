@@ -101,12 +101,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(signal_msg, parse_mode="Markdown")
 
 def main():
-    token=os.environ.get("BOT_TOKEN")
-if not token:
-print("BOT_TOKEN is missing!")
-return
+    token = os.environ.get("BOT_TOKEN")
+    if not token:
+        print("BOT_TOKEN is missing!")
+        return
 
-     keep_alive()
+    keep_alive()
     application = Application.builder().token(token).build()
     
     application.add_handler(CommandHandler("start", start))
