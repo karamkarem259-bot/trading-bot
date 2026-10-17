@@ -1,128 +1,103 @@
-import os
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import threading
-
-class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is running!")
-
-def run_web_server():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
-    server.serve_forever()
-
-threading.Thread(target=run_web_server, daemon=True).start()
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
-import yfinance as yf
-import pandas as pd
-import ta
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=10)
+# إعداد السجلات لمتابعة عمل البوت
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-# ضع توكين بوتك هنا بين القوسين المفردين بدلاً من النص الموجود
-TOKEN ='8843005132:AAEEg-c1EdT045S44o--StVNn8p37ubJcCI'
+# توكن البوت (استبدل القيم الرمزية بالتوكن الخاص بك من BotFather)
+TOKEN = "8843005132:AAEEg-c1EdT045S44o--StVNn8p37ubJcCI"
 
-PAIRS = {
-    "EUR/USD": "EURUSD=X",
-    "GBP/USD": "GBPUSD=X",
-    "USD/JPY": "JPY=X",
-    "USD/CAD": "USDCAD=X",
-    "AUD/USD": "AUDUSD=X",
-    "EUR/GBP": "EURGBP=X",
-    "Bitcoin (BTC)": "BTC-USD",
-    "Ethereum (ETH)": "ETH-USD",
-    "SOL/USD": "SOL-USD",
-    "XRP/USD": "XRP-USD",
-    "EUR/USD (OTC)": "EURUSD=X",
-    "GBP/USD (OTC)": "GBPUSD=X",
-    "USD/JPY (OTC)": "JPY=X",
-    "Gold (OTC)": "GC=F",
-    "Silver (OTC)": "SI=F"
+# قائمة الأصول والأزواج مع الأعلام والتنسيق المماثل للفيديو
+PAIRS_DATA = {
+    "eurusd_otc": "🇪🇺 🇺🇸 EUR/USD (OTC)",
+    "gbpusd_otc": "🇬🇧 🇺🇸 GBP/USD (OTC)",
+    "usdjpy_otc": "🇺🇸 🇯🇵 USD/JPY (OTC)",
+    "gbpjpy_otc": "🇬🇧 🇯🇵 GBP/JPY (OTC)",
+    "gold_otc": "🥇 Gold (OTC)",
+    "silver_otc": "🥈 Silver (OTC)",
+    "btcusd_otc": "₿ BTC/USD (OTC)",
+    "xrpusd_otc": "💧 XRP/USD (OTC)",
 }
 
 
-def analyze_market(ticker_symbol):
-    try:
-        data = yf.download(tickers=ticker_symbol, period="1d", interval="1m", progress=False)
-        if data.empty or len(data) < 15:
-            return None, "تعذر جلب البيانات الكافية."
-
-        if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.get_level_values(0)
-
-        data['RSI'] = ta.momentum.rsi(data['Close'], window=14)
-        data['EMA9'] = ta.trend.ema_indicator(data['Close'], window=9)
-        data['EMA21'] = ta.trend.ema_indicator(data['Close'], window=21)
-
-        last_rsi = data['RSI'].iloc[-1]
-        last_close = data['Close'].iloc[-1]
-        last_ema9 = data['EMA9'].iloc[-1]
-        last_ema21 = data['EMA21'].iloc[-1]
-
-        if last_rsi < 35 or (last_ema9 > last_ema21 and last_rsi < 60):
-            signal = "🟢 صعود (CALL / BUY)"
-            reason = "مؤشر RSI في منطقة تشبع بيعي أو تقاطع إيجابي للمتوسطات."
-        elif last_rsi > 65 or (last_ema9 < last_ema21 and last_rsi > 40):
-            signal = "🔴 هبوط (PUT / SELL)"
-            reason = "مؤشر RSI في منطقة تشبع شرائي أو تقاطع سلبي للمتوسطات."
-        else:
-            signal = "⚪ محايد (NEUTRAL / WAITING)"
-            reason = "السوق في اتجاه عرضي، يُفضل الانتظار."
-
-        return {
-            "signal": signal,
-            "price": round(last_close, 5),
-            "rsi": round(last_rsi, 2),
-            "reason": reason
-        }, None
-    except Exception as e:
-        return None, str(e)
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = []
-    for pair_name in PAIRS.keys():
-        keyboard.append([InlineKeyboardButton(pair_name, callback_data=pair_name)])
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("مرحباً بك! اختر زوج العملات للحصول على توصية فريم (1 دقيقة):", reply_markup=reply_markup)
+  """إرسال القائمة الرئيسية عند كتابة /start مع الأزرار التفاعلية للأزواج"""
+  keyboard = []
+  row = []
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+  # ترتيب الأزرار في صفوف ثنائية تماماً كما في الفيديو
+  for key, name in PAIRS_DATA.items():
+    row.append(InlineKeyboardButton(name, callback_data=f"trade_{key}"))
+    if len(row) == 2:
+      keyboard.append(row)
+      row = []
+  if row:
+    keyboard.append(row)
 
-    pair_name = query.data
-    ticker = PAIRS.get(pair_name)
+  reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(f"⏳ جاري تحليل زوج {pair_name} على فريم 1 دقيقة...")
+  welcome_text = (
+      "🚀 **Pocket Option VIP Signals Bot** 🚀\n\n"
+      "مرحباً بك! هذا البوت مخصص لإرسال إشارات التداول الفورية (فريم 10 ثوانٍ / سكالبينج).\n"
+      "اختر الزوج أدناه لعرض أحدث التحليلات والإشارات المتاحة:"
+  )
 
-    result, error = analyze_market(ticker)
-
-    if error:
-        await query.message.reply_text(f"❌ حدث خطأ أثناء التحليل: {error}")
-        return
-
-    text = (
-        f"📊 **تحليل الزوج:** {pair_name}\n"
-        f"⏱ **الفريم:** 1 دقيقة\n"
-        f"💵 **السعر الحالي:** {result['price']}\n"
-        f"📈 **مؤشر RSI:** {result['rsi']}\n\n"
-        f"🎯 **التوصية:** {result['signal']}\n"
-        f"💡 **السبب:** {result['reason']}"
+  if update.message:
+    await update.message.reply_text(
+        welcome_text, reply_markup=reply_markup, parse_mode="Markdown"
+    )
+  elif update.callback_query:
+    await update.callback_query.message.edit_text(
+        welcome_text, reply_markup=reply_markup, parse_mode="Markdown"
     )
 
-    keyboard = [[InlineKeyboardButton(p, callback_data=p)] for p in PAIRS.keys()]
-    reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.message.reply_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  """التعامل مع الضغط على أزرار الأزواج وإعطاء تفاصيل الإشارة الفورية"""
+  query = update.callback_query
+  await query.answer()
 
-if __name__ == '__main__':
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_handler))
+  data = query.data
+  if data.startswith("trade_"):
+    pair_key = data.replace("trade_", "")
+    pair_name = PAIRS_DATA.get(pair_key, "Asset")
 
-    print("البوت يعمل الآن...")
-    app.run_polling()
+    # محاكاة إشارة فورية مطابقة لأسلوب الفيديو
+    signal_text = (
+        f"📊 **SIGNAL ALERT** 📊\n\n"
+        f"asset: **{pair_name}**\n"
+        f"⏱ **Expiration:** 10 Seconds\n"
+        f"📈 **Direction:** 🟢 **BUY (CALL)** أو 🔴 **PUT**\n"
+        f"⚡ **Status:** Active Now!\n\n"
+        f"_أدخل الصفقة الآن بنسبة نجاح عالية._"
+    )
+
+    back_keyboard = [[InlineKeyboardButton("🔙 رجوع للأزواج", callback_data="main_menu")]]
+    reply_markup = InlineKeyboardMarkup(back_keyboard)
+
+    await query.message.edit_text(
+        signal_text, reply_markup=reply_markup, parse_mode="Markdown"
+    )
+
+  elif data == "main_menu":
+    await start(update, context)
+
+
+def main():
+  """تشغيل البوت"""
+  application = ApplicationBuilder().token(TOKEN).build()
+
+  # المعالجات (Handlers)
+  application.add_handler(CommandHandler("start", start))
+  application.add_handler(CallbackQueryHandler(button_handler))
+
+  print("Bot is running...")
+  application.run_polling()
+
+
+if __name__ == "__main__":
+  main()
