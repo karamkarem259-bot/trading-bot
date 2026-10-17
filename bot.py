@@ -102,9 +102,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     token=os.environ.get("BOT_TOKEN")
-    if not token:
-      print("BOT_TOKEN is missing!")
-      return
+if not token:
+print("BOT_TOKEN is missing!")
+return
 
      keep_alive()
     application = Application.builder().token(token).build()
